@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flappy Bird</title>
+    <style>
+      body {
+        margin: 0;
+      }
+
+      body::-webkit-scrollbar,
+      .gameArea::-webkit-scrollbar {
+        display: none;
+        scroll-behavior: smooth;
+      }
+
+      .hide {
+        display: none;
+      }
+
+      .gameArea {
+        background-color: skyblue;
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        max-height: 100vh;
+
+        margin: auto;
+        z-index: 10;
+      }
+
+      .score {
+        position: absolute;
+        width: 100%;
+        z-index: 100;
+        background-color: black;
+        color: white;
+        text-align: center;
+        height: 50px;
+        font-size: 1.5em;
+        font-family: cursive;
+      }
+
+      .startScreen {
+        position: absolute;
+        background-color: red;
+        left: 25%;
+        top: 100px;
+        color: white;
+        width: 50%;
+        padding: 15px;
+        border: 1px solid black;
+        text-align: center;
+        cursor: pointer;
+      }
+
+      .bird {
+        position: absolute;
+        top: 100px;
+        left: 50px;
+        width: 50px;
+        height: 40px;
+        line-height: 40px;
+        font-size: 1.5em;
+        background-image: url(bird.png);
+        background-size: cover;
+        z-index: 10;
+      }
+
+      .wing {
+        position: absolute;
+        top: 10px;
+        left: 0;
+        background-color: gold;
+        width: 25px;
+        height: 12px;
+        border-radius: 5px;
+      }
+
+      .gameMessage {
+        position: absolute;
+        top: 10%;
+        text-align: center;
+        left: 20%;
+        width: 60%;
+        background-color: aliceblue;
+        font-size: 2em;
+        z-index: 10;
+      }
+
+      .pipe {
+        width: 100px;
+        position: absolute;
+        text-align: center;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="score"></div>
+    <div class="game">
+      <div class="startScreen">Press Start</div>
+      <div class="gameMessage hide"></div>
+      <div class="gameArea"></div>
+    </div>
+
+    <script>
+      let keys = {}
+
+      const score = document.querySelector(".score")
+      const startScreen = document.querySelector(".startScreen")
+      const gameMessage = document.querySelector(".gameMessage")
+      const gameArea = document.querySelector(".gameArea")
+
+      startScreen.addEventListener("click", start)
+      gameMessage.addEventListener("click", start)
+      document.addEventListener("keydown", pressOn)
+      document.addEventListener("keyup", pressOff)
+
+      let player = {
+        score: 0,
+        speed: 3,
+        inPlay: true,
+        pipe: 0, // obstacles
+      }
+
+      function pressOn(e) {
+        e.preventDefault()
+        keys[e.code] = true
+        // console.log(keys)
+      }
+
+      function pressOff(e) {
+        e.preventDefault()
+        keys[e.code] = false
+        // console.log(keys)
+      }
+
+      // [Step 1: start Game]
+      function start() {
+        gameMessage.classList.add("hide")
+        startScreen.classList.add("hide")
+
+        // (reset everything before creating)
+        gameArea.innerHTML = ""
+        player.score = 0
+        player.pipe = 0
+        score.innerHTML = "Score: " + player.score
+        player.inPlay = true
+
+        let bird = document.createElement("div")
+        bird.classList.add("bird")
+        let wing = document.createElement("span")
+        wing.pos = 15
+        wing.classList.add("wing")
+        bird.appendChild(wing)
+        gameArea.appendChild(bird)
+
+        // (get initial position of player and update them to x,y of bird Object)
+        player.x = bird.offsetLeft
+        player.y = bird.offsetTop
+
+        // {Pipe Obstacles}
+        let spacing = 400 // space of each pipe
+        let howMany = Math.floor(gameArea.offsetWidth / spacing)
+
+        for (let x = 0; x < howMany; x++) {
+          buildPipes(player.pipe * spacing)
+        }
+
+        window.requestAnimationFrame(playGame)
+      }
+
+      // [step 2: animation Frame]
+      function playGame() {
+        if (player.inPlay) {
+          // console.log(player)
+          let bird = document.querySelector(".bird")
+          let wing = document.querySelector(".wing")
+
+          movePipes(bird)
+
+          let move = false
+
+          if (keys.ArrowLeft && player.x > 0) {
+            player.x -= player.speed * 2
+            move = true // moving wing
+          }
+          if (keys.ArrowRight && player.x < gameArea.offsetWidth - 60) {
+            player.x += player.speed
+            move = true // moving wing
+          }
+          if ((keys.ArrowUp || keys.Space) && player.y > 50) {
+            player.y -= player.speed
+            move = true // moving wing
+          }
+
+          if (keys.ArrowDown && player.y < gameArea.offsetHeight - 50) {
+            player.y += player.speed
+            move = true // moving wing
+          }
+
+          if (move) {
+            wing.pos = wing.pos === 15 ? 25 : 15
+
+            // wing moving khi di chuyen
+            wing.style.top = wing.pos + "px"
+          }
+
+          player.x += player.speed
+
+          player.y += player.speed / 2
+
+          if (player.x > gameArea.offsetWidth - 50) {
+            player.x = 0
+          }
+
+          if (player.y > gameArea.offsetHeight) {
+            gameOver(bird)
+          }
+
+          bird.style.top = player.y + "px"
+          bird.style.left = player.x + "px"
+
+          window.requestAnimationFrame(playGame)
+          player.score++
+          score.innerHTML = "Score: " + player.score
+        }
+      }
+
+      // [step 3: create pipe obstacles]
+      function buildPipes(startPos) {
+        // console.log(startPos)
+        let totalHeight = gameArea.offsetHeight
+        let totalWidth = gameArea.offsetWidth
+        player.pipe++
+
+        // (top pipe)
+        let pipeTop = document.createElement("div")
+        pipeTop.start = startPos + totalWidth
+
+        pipeTop.classList.add("pipe")
+        pipeTop.innerHTML = "<br>" + player.pipe
+        pipeTop.height = Math.floor(Math.random() * 350)
+        pipeTop.style.height = pipeTop.height + "px"
+        pipeTop.style.left = pipeTop.start + "px"
+        pipeTop.style.top = "0px"
+        pipeTop.x = pipeTop.start
+        pipeTop.id = player.pipe
+        pipeTop.style.backgroundColor = "black"
+        gameArea.appendChild(pipeTop)
+
+        // (space of 2 pipes)
+        let pipeSpace = Math.floor(Math.random() * 250) + 150
+
+        // (bottom pipe)
+        let pipeBottom = document.createElement("div")
+        pipeBottom.start = pipeTop.start
+        pipeBottom.classList.add("pipe")
+        pipeBottom.innerHTML = "<br>" + player.pipe
+
+        // == total Height - height top pipe - height of space
+        pipeBottom.style.height =
+          totalHeight - pipeTop.height - pipeSpace + "px"
+        pipeBottom.style.left = pipeTop.start + "px"
+        pipeBottom.style.bottom = "0px"
+        pipeBottom.x = pipeTop.start
+        pipeBottom.id = player.pipe
+        pipeBottom.style.backgroundColor = "black"
+        gameArea.appendChild(pipeBottom)
+      }
+
+      // [step 4: pipe moving]
+      function movePipes(bird) {
+        let pipes = document.querySelectorAll(".pipe")
+        let counter = 0 // count pipes to remove
+        pipes.forEach((item, index) => {
+          item.x -= player.speed / 1.5
+          item.style.left = item.x + "px"
+
+          if (item.x < 0) {
+            // remove the one already passed
+            item.parentElement.removeChild(item)
+            counter++
+          }
+
+          if (isCollide(item, bird)) {
+            gameOver(bird)
+          }
+        })
+
+        // (Create new pipes)
+        counter = counter / 2 // top and bottom
+        for (let x = 0; x < counter; x++) {
+          buildPipes(0)
+        }
+      }
+
+      // [Step 5: Check Collision]
+      function isCollide(a, b) {
+        let aRect = a.getBoundingClientRect()
+        let bRect = b.getBoundingClientRect()
+        return !(
+          aRect.bottom < bRect.top ||
+          aRect.top > bRect.bottom ||
+          aRect.right < bRect.left ||
+          aRect.left > bRect.right
+        )
+      }
+
+      // [Step 6 : set GameOver]
+      function gameOver(bird) {
+        console.log("game over")
+        player.inPlay = false
+        bird.style.transform = "rotate(180deg)"
+        gameMessage.classList.remove("hide")
+        gameMessage.innerHTML =
+          "Game Over <br/> You scored: " +
+          player.score +
+          "<br> Click here to start again"
+      }
+    </script>
+  </body>
+</html>
